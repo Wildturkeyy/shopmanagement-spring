@@ -1,0 +1,127 @@
+package com.shopsProject.management.service;
+
+import com.shopsProject.management.Repository.CategoryRepository;
+import com.shopsProject.management.Repository.ProdImgRepository;
+import com.shopsProject.management.Repository.ProdVariantRepository;
+import com.shopsProject.management.Repository.WholesaleProdRepository;
+import com.shopsProject.management.domain.Category;
+import com.shopsProject.management.domain.ProdImg;
+import com.shopsProject.management.domain.ProdVariant;
+import com.shopsProject.management.domain.User;
+import com.shopsProject.management.domain.WholesaleProd;
+import com.shopsProject.management.dto.WholesaleProdDto;
+import com.shopsProject.management.dto.WholesaleProdDto.CreateResponse;
+import com.shopsProject.management.dto.WholesaleProdDto.ProdValue;
+import com.shopsProject.management.exception.CustomException;
+import jakarta.transaction.Transactional;
+import java.util.Arrays;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+
+/**
+ * 도매업체 상품 등록 서비스
+ * 상품 엔티티/이미지/옵션/상세블럭(블로그형 등) DB 저장 일괄 처리
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class WholesaleProdService {
+
+    private final WholesaleProdRepository wholesaleProdRepository;
+    private final ProdImgRepository prodImgRepository;
+    private final ProdVariantRepository prodVariantRepository;
+    private final CategoryRepository categoryRepository;
+
+    /**
+     * 도매 업체 상품 등록
+     * : 상품 및 옵션, 이미지, 상세블록 등
+     * @param req 상품 등록 요청 DTO
+     * @param wholesalerUuid 로그인한 도매업체 Uuid
+     * @return 상품 등록 응답 DTO
+     */
+    @Transactional
+    public WholesaleProdDto.CreateResponse createProduct(WholesaleProdDto.CreateRequest req, String wholesalerUuid) {
+        ProdValue pv = req.getProdValue();
+        log.info("[도매업체 상품등록] 도매업체: {}, 요청 상품명: {}", wholesalerUuid, pv.getProductName());
+
+        // 카테고리 유효성 확인
+        Category category = categoryRepository.findById(pv.getCategoryId())
+            .orElseThrow(() -> {
+                log.warn("[도매업체 상품등록] 카테고리 없음 / 요청Id: {}", pv.getCategoryId());
+                return new CustomException("CATEGORY_NOT_FOUND", "카테고리를 찾을 수 없습니다.",
+                    HttpStatus.BAD_REQUEST);
+            });
+        log.debug("[도매업체 상품등록] 카테고리 검증 완료: {}", category.getCategoryName());
+
+        // 상품 Entity 생성 및 저장
+        log.debug("[도매업체 상품등록] 상품 Entity 생성 : {}", pv);
+        WholesaleProd prod = WholesaleProd.builder()
+            .wholesaler(User.builder().uuid(wholesalerUuid).build())
+            .category(category)
+            .productName(pv.getProductName())
+            .price((pv.getPrice() != null) ? pv.getPrice() : 0)
+            .isSmplAva(pv.getIsSmplAva() != null ? pv.getIsSmplAva() : true)
+            .isActive(true)
+            .memo(pv.getMemo())
+            .description(pv.getDescription())
+            .build();
+
+        WholesaleProd savedProd = wholesaleProdRepository.save(prod);
+        log.info("[도매업체 상품등록] 상품 DB 저장 완료 / prodId: {}", savedProd.getId());
+
+        // 이미지 저장
+        if (pv.getImages() != null) {
+            for (WholesaleProdDto.Image imgDto : pv.getImages()) {
+                ProdImg img = ProdImg.builder()
+                    .product(savedProd)
+                    .img(imgDto.getImgUrl())
+                    .sortOrder(imgDto.getSortOrder())
+                    .build();
+                prodImgRepository.save(img);
+                log.debug("[도매업체 상품등록] 상품 이미지 등록 / 이미지 id : {}", img.getId());
+            }
+        }
+
+        // 옵션 저장
+        List<String> sizeList = splitCommaSeparated(req.getSizes());
+        List<String> colorList = splitCommaSeparated(req.getColors());
+
+        for (String color : colorList) {
+            for (String size : sizeList) {
+                ProdVariant variant = ProdVariant.builder()
+                    .product(savedProd)
+                    .size(size)
+                    .color(color)
+                    .stock(0)
+                    .build();
+                prodVariantRepository.save(variant);
+                log.debug("[도매업체 상품등록] 상품 옵션(컬러, 사이즈, 재고) 등록 / Variant id: {}", variant.getId());
+            }
+        }
+
+        //상세 블로그도
+
+        //응답
+        WholesaleProdDto.CreateResponse response = new CreateResponse();
+        response.setProdId(savedProd.getId());
+        log.info("[도매업체 상품등록] 최종 상품 저장 및 응답 완료 / prodId: {}", response.getProdId());
+        return response;
+
+    }
+
+    /**
+     * 쉼표로 구분된 문자열을 List로 변환, null/빈 값은 "기본"으로 반환
+     * @param str ex.) "S, M, L"
+     * @return ex) ["S", "M", "L"], ["기본"]
+     */
+    private List<String> splitCommaSeparated(String str) {
+        if (str == null || str.isBlank()) return List.of("기본");
+        return Arrays.stream(str.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .toList();
+    }
+}
