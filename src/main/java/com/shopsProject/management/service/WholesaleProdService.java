@@ -2,11 +2,12 @@ package com.shopsProject.management.service;
 
 import com.shopsProject.management.Repository.CategoryRepository;
 import com.shopsProject.management.Repository.ProdImgRepository;
-import com.shopsProject.management.Repository.ProdVariantRepository;
+import com.shopsProject.management.Repository.WholesaleProdVariantRepository;
 import com.shopsProject.management.Repository.WholesaleProdRepository;
+import com.shopsProject.management.validation.WholesaleProdChecker;
 import com.shopsProject.management.domain.Category;
 import com.shopsProject.management.domain.ProdImg;
-import com.shopsProject.management.domain.ProdVariant;
+import com.shopsProject.management.domain.WholesaleProdVariant;
 import com.shopsProject.management.domain.User;
 import com.shopsProject.management.domain.WholesaleProd;
 import com.shopsProject.management.dto.WholesaleProdDto;
@@ -30,9 +31,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class WholesaleProdService {
 
+    private final WholesaleProdChecker wholesaleProdChecker;
     private final WholesaleProdRepository wholesaleProdRepository;
     private final ProdImgRepository prodImgRepository;
-    private final ProdVariantRepository prodVariantRepository;
+    private final WholesaleProdVariantRepository prodVariantRepository;
     private final CategoryRepository categoryRepository;
 
     /**
@@ -48,9 +50,9 @@ public class WholesaleProdService {
         log.info("[도매업체 상품등록] 도매업체: {}, 요청 상품명: {}", wholesalerUuid, pv.getProductName());
 
         // 카테고리 유효성 확인
-        Category category = categoryRepository.findById(pv.getCategoryId())
+        Category category = categoryRepository.findById(pv.getCategory().getId())
             .orElseThrow(() -> {
-                log.warn("[도매업체 상품등록] 카테고리 없음 / 요청Id: {}", pv.getCategoryId());
+                log.warn("[도매업체 상품등록] 카테고리 없음 / 요청Id: {}", pv.getCategory().getId());
                 return new CustomException("CATEGORY_NOT_FOUND", "카테고리를 찾을 수 없습니다.",
                     HttpStatus.BAD_REQUEST);
             });
@@ -91,7 +93,7 @@ public class WholesaleProdService {
 
         for (String color : colorList) {
             for (String size : sizeList) {
-                ProdVariant variant = ProdVariant.builder()
+                WholesaleProdVariant variant = WholesaleProdVariant.builder()
                     .product(savedProd)
                     .size(size)
                     .color(color)
@@ -106,10 +108,106 @@ public class WholesaleProdService {
 
         //응답
         WholesaleProdDto.CreateResponse response = new CreateResponse();
-        response.setProdId(savedProd.getId());
-        log.info("[도매업체 상품등록] 최종 상품 저장 및 응답 완료 / prodId: {}", response.getProdId());
+        response.setProductId(savedProd.getId());
+        log.info("[도매업체 상품등록] 최종 상품 저장 및 응답 완료 / prodId: {}", response.getProductId());
         return response;
 
+    }
+
+    public WholesaleProdDto.ProdResponse getProductDetails(Long productId, String uuid) {
+        log.info("[도매업체 상품 디테일] 정보 전닾 / 요청자: {}, productId: {}", uuid, productId);
+
+        WholesaleProd prod = wholesaleProdChecker.validateAndGetProduct(productId, uuid, "[도매업체 상품 디테일]");
+
+        // 이미지
+        List<WholesaleProdDto.Image> images = prod.getImages().stream()
+            .map(img -> WholesaleProdDto.Image.builder()
+                .id(img.getId())
+                .imgUrl(img.getImg())
+                .sortOrder(img.getSortOrder())
+                .build())
+            .toList();
+
+        // 디테일 블록
+        List<WholesaleProdDto.DetailBlock> detailBlocks = prod.getDetailBlocks().stream()
+            .map(detail -> WholesaleProdDto.DetailBlock.builder()
+                .id(detail.getId())
+                .blockType(detail.getBlockType())
+                .imgUrl(detail.getImgUrl())
+                .content(detail.getContent())
+                .blockOrder(detail.getBlockOrder())
+                .build())
+            .toList();
+
+        List<WholesaleProdDto.StockOption> stockOptions = prod.getVariants().stream()
+            .map(stock -> WholesaleProdDto.StockOption.builder()
+                .id(stock.getId())
+                .size(stock.getSize())
+                .color(stock.getColor())
+                .stock(stock.getStock())
+                .build())
+            .toList();
+
+        WholesaleProdDto.ProdValue prodValue = WholesaleProdDto.ProdValue.builder()
+            .productName(prod.getProductName())
+            .category(WholesaleProdDto.Category.builder()
+                .id(prod.getCategory().getId())
+                .name(prod.getCategory().getCategoryName())
+                .build())
+            .price(prod.getPrice())
+            .isSmplAva(prod.isSmplAva())
+            .memo(prod.getMemo())
+            .description(prod.getDescription())
+            .images(images)
+            .detailBlocks(detailBlocks)
+            .build();
+
+        return WholesaleProdDto.ProdResponse.builder()
+            .productId(productId)
+            .prodValue(prodValue)
+            .stockOptions(stockOptions)
+            .build();
+    }
+
+    /**
+     * 도매 업체 상품 상태 변경
+     * @param productId 상태 변경 요청하는 상품id
+     * @param uuid 요청자의 uuid
+     * @param isActive 변경할 상품의 상태 / true : 판매중, fasle : 판매 중단
+     * @return productId, isActive
+     */
+    @Transactional
+    public WholesaleProdDto.UpdateIsActiveResponse updateIsActive(Long productId, String uuid, boolean isActive) {
+        log.info("[도매업체 상품 활동 변경] 판매중/판매중단 변경 요청 / productId: {}", productId);
+
+        WholesaleProd prod = wholesaleProdChecker.validateAndGetProduct(productId, uuid, "[도매업체 상품 활동 변경]");
+        System.out.println("요청 받은 상태: " + isActive);
+        System.out.println("db 상태 : " + prod.isActive());
+        if (prod.isActive() == isActive) {
+            log.warn("[도매업체 상품 활동 변경] 이미 요청값과 동일한 상태 / productId: {}, 현재 상태: {}", productId, isActive);
+            throw  new CustomException("NOT_CHANGED", isActive ? "이미 판매중인 상품입니다." : "이미 판매 중단된 상품입니다.", HttpStatus.BAD_REQUEST);
+        }
+
+        prod.setActive(!prod.isActive());
+        wholesaleProdRepository.save(prod);
+
+        log.info("[도매업체 상품 활동 변경] 판매중/판매중단 변경 요청 완료 / productId: {}, 변경 상태: {}", productId, prod.isActive());
+
+        return WholesaleProdDto.UpdateIsActiveResponse.builder()
+            .productId(productId)
+            .isActive(prod.isActive())
+            .build();
+    }
+
+    @Transactional
+    public void deleteProduct(Long productId, String uuid) {
+        log.info("[도매업체 상품 삭제 요청] 유효성 검증 / 요청자: {}. prodcutId: {}", uuid, productId);
+        WholesaleProd prod = wholesaleProdChecker.validateAndGetProduct(productId, uuid, "[도매업체 상품 삭제 요청]");
+
+        // 판매내역 여부 확인
+
+        wholesaleProdRepository.delete(prod);
+        log.info("[도매업체 상품 삭제 요청] 완료 / 요청자: {}", uuid);
     }
 
     /**

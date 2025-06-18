@@ -21,7 +21,7 @@ import lombok.Setter;
     @UniqueConstraint(columnNames = {"product_id", "size", "color"})
 })
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class ProdVariant {
+public class WholesaleProdVariant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

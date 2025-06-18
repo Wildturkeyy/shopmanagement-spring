@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.util.List;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,20 +30,23 @@ public class WholesaleProdDto {
 
     @Getter @Setter
     public static class CreateResponse {
-        private Long prodId;
+        private Long productId;
     }
 
     // 상품 수정 Dto
+    @Getter @Setter
     public static class ModifyRequest {
-        private Long prodId;
+        private Long productId;
 
         private ProdValue prodValue;
 
         private List<@Valid StockOption> stockOptions;
     }
 
-    public static class ModifyResponse {
-        private Long prodId;
+    // 상품 Detail, 수정 response dto
+    @Getter @Setter @Builder
+    public static class ProdResponse {
+        private Long productId;
 
         private ProdValue prodValue;
 
@@ -50,14 +54,14 @@ public class WholesaleProdDto {
     }
 
     // 상품 정보 dto
-    @Getter @Setter
+    @Getter @Setter @Builder
     public static class ProdValue {
         @NotBlank(message = "상품명을 작성해주세요.")
         @Size(max = 100, message = "상품명은 100자 이내로 작성해 주세요.")
         private String productName;
 
         @NotNull(message = "카테고리를 선택해주세요.")
-        private int categoryId;
+        private Category category;
 
         @Positive(message = "가격은 0보다 큰 수로 작성해 주세요.")
         private Integer price; //null이면 0처리
@@ -74,17 +78,26 @@ public class WholesaleProdDto {
         private List<@Valid DetailBlock> detailBlocks;
     }
 
+    // 카테고리 dto
+    @Getter @Setter @Builder
+    public static class Category {
+        private int id;
+        private String name;
+    }
+
     // 이미지 dto
-    @Getter @Setter
+    @Getter @Setter @Builder
     public static class Image {
+        private Long id;
         @NotBlank
         private String imgUrl;
         private int sortOrder;
     }
 
     // 상세 정보 (블로그 블록) dto
-    @Getter @Setter
+    @Getter @Setter @Builder
     public static class DetailBlock {
+        private Long id;
         @Schema(description = "해당 블록 타임" ,  example = "TEXT, IMAGE")
         @NotBlank(message = "blockType은 필수입니다.") // TEXT, IMAGE, VIDEO
         private String blockType;
@@ -94,12 +107,25 @@ public class WholesaleProdDto {
     }
 
     // 재고 옵션 dto
-    @Getter @Setter
+    @Getter @Setter @Builder
     public static class StockOption {
         private Long id;
         private String color;
         private String size;
         private int stock;
+    }
+
+    // /////////////////////////////////////////////////////////////
+    // 상품 "판매중" "판매중단" 상태변경 dto
+    @Getter @Setter
+    public static class UpdateIsActiveRequest {
+        private boolean isActive;
+    }
+
+    @Getter @Setter @Builder
+    public static class UpdateIsActiveResponse {
+        private Long productId;
+        private boolean isActive;
     }
 
 }

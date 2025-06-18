@@ -62,7 +62,7 @@ public class AuthService {
             .build());
 
         log.info("[회원 관리] 로그인 - 로그인 완료 / uuid: {}, userId(masking): {}",user.getUuid(), mask(req.userId()));
-        return new LoginResponse(accessToken, refreshToken, user.getRole());
+        return new LoginResponse(accessToken, refreshToken);
     }
 
     /**
