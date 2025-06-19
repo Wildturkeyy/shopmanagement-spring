@@ -98,4 +98,33 @@ public class WholesaleProdVariantController {
         return ResponseEntity.ok(prodVariantService.updateProdVariantsByProdId(productId,
             principal.getUuid(), req));
     }
+
+    /**
+     * 도매 업체 상품 중 특정 상품의 특정 재고 옵션 수정 by variantId
+     * @param productId
+     * @param variantId
+     * @param req Integer stock
+     * @param principal
+     * @return productId, variantId, size, color, stock
+     */
+    @Operation(
+        summary = "도매상품 재고 수정 by variantId",
+        description = "도매 업체 상품 중 특정 상품의 특정 재고 옵션의 재고 수정 요청 by variantId",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "성공",
+                content = @Content(schema = @Schema(implementation = WholesaleProdVariantDto.updateProdVariantResponse.class)))
+        }
+    )
+    @PreAuthorize("hasRole('WHOLESALER')")
+    @PatchMapping("/{productId}/variants/{variantId}")
+    public ResponseEntity<WholesaleProdVariantDto.updateProdVariantResponse> updateProdVariantByVariantId(
+        @PathVariable Long productId,
+        @PathVariable Long variantId,
+        @RequestBody @Valid WholesaleProdVariantDto.updateProdVariantRequest req,
+        @AuthenticationPrincipal CustomUserDetails principal ) {
+
+        log.info("[도매 상품 옵션 수정 by Variant] 수정 요청 Controller / 요청자: {}, variantId: {}", principal.getUuid(), variantId);
+
+        return ResponseEntity.ok(prodVariantService.updateProdVariantByVariantId(productId,variantId, req.getStock(), principal.getUuid()));
+    }
 }

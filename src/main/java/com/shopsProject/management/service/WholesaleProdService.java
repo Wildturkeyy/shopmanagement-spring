@@ -92,6 +92,8 @@ public class WholesaleProdService {
         // 옵션 저장
         List<String> sizeList = splitCommaSeparated(req.getSizes());
         List<String> colorList = splitCommaSeparated(req.getColors());
+        log.info(sizeList.toString());
+        log.info(colorList.toString());
 
         for (String color : colorList) {
             for (String size : sizeList) {
@@ -102,6 +104,7 @@ public class WholesaleProdService {
                     .stock(0)
                     .build();
                 prodVariantRepository.save(variant);
+                log.info("[도매업체 상품 등록 옵션] variantId: {}", variant.getId());
                 log.debug("[도매업체 상품등록] 상품 옵션(컬러, 사이즈, 재고) 등록 / Variant id: {}", variant.getId());
             }
         }

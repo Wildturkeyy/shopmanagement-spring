@@ -1,6 +1,7 @@
 package com.shopsProject.management.service;
 
 import com.shopsProject.management.Repository.WholesaleProdVariantRepository;
+import com.shopsProject.management.dto.WholesaleProdDto;
 import com.shopsProject.management.dto.WholesaleProdVariantDto.ProdVariantDto;
 import com.shopsProject.management.validation.WholesaleProdChecker;
 import com.shopsProject.management.domain.WholesaleProdVariant;
@@ -20,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * 도매업체 상품 재고 옵션 관리 서비스
@@ -56,22 +58,13 @@ public class WholesaleProdVariantService {
 
         WholesaleProd prod = wholesaleProdChecker.validateAndGetProduct(productId, uuid, "[도매 상품 옵션]");
 
-        List<WholesaleProdVariant> prodVariants = prod.getVariants();
-
-        List<WholesaleProdVariantDto.ProdVariantItem> result = prodVariants.stream()
-            .map(variant -> WholesaleProdVariantDto.ProdVariantItem.builder()
-                .id(variant.getId())
-                .size(variant.getSize())
-                .color(variant.getColor())
-                .stock(variant.getStock())
-                .build()
-            ).toList();
-
         log.info("[도매 상품 옵션] 특정 상품 재고 목록 리스트화 완료 / 요청자: {}, productId: {}", uuid, productId);
 
         return WholesaleProdVariantDto.GetProdVariantListResponse.builder()
             .productId(productId)
-            .prodVariants(result)
+            .prodVariants( prod.getVariants().stream()
+                .map(WholesaleProdVariantDto.ProdVariantItem::from)
+                .toList() )
             .build();
     }
 
@@ -86,7 +79,7 @@ public class WholesaleProdVariantService {
     public WholesaleProdVariantDto.GetProdVariantListResponse updateProdVariantsByProdId(Long productId, String uuid, WholesaleProdVariantDto.UpdateProdVariantListRequest req) {
         log.info("[도매 상품 옵션 재고 수정] 상품 유효성 검사 요청 / 요청자: {}, productId: {}", uuid, productId);
 
-        List<WholesaleProdVariantDto.ProdStock> items = req.getProdVariants(); // 수정 요청된 값
+        List<WholesaleProdVariantDto.ProdStock> items = req.getProdStocks(); // 수정 요청된 값
 
         // 유효성 검사
         if (items == null || items.isEmpty()) {
@@ -118,22 +111,29 @@ public class WholesaleProdVariantService {
 
         prodVariantRepository.saveAll(prods);
 
-        // 반영 결과 Response 생성
-        List<WholesaleProdVariantDto.ProdVariantItem> updatedItems = prods.stream()
-            .map(p -> WholesaleProdVariantDto.ProdVariantItem.builder()
-                .id(p.getId())
-                .size(p.getSize())
-                .color(p.getColor())
-                .stock(p.getStock())
-                .build())
-            .collect(Collectors.toList());
-
         log.info("[도매상품 옵션 재고 수정] 특정 상품의 재고 수정 완료 / 요청자: {}, product_id: {}", uuid, productId);
 
         return WholesaleProdVariantDto.GetProdVariantListResponse.builder()
             .productId(productId)
-            .prodVariants(updatedItems)
+            .prodVariants( prods.stream()
+                .map(WholesaleProdVariantDto.ProdVariantItem::from)
+                .toList() )
             .build();
+    }
+
+    @Transactional
+    public WholesaleProdVariantDto.updateProdVariantResponse updateProdVariantByVariantId(Long productId, Long variantId, Integer stock, String uuid) {
+        log.info("[도매업체 상품 재고 수정 by variantId] 유효성 검사 / 요청자: {}, variantId: {}", uuid, variantId);
+
+        WholesaleProdVariant variant = wholesaleProdChecker.validateAndGetVariant(productId, variantId, uuid, "[도매업체 상품 재고 수정 by variantId]");
+
+        variant.setStock(stock);
+
+        return WholesaleProdVariantDto.updateProdVariantResponse.builder()
+            .productId(variant.getProduct().getId())
+            .prodVariant(WholesaleProdVariantDto.ProdVariantItem.from(variant))
+            .build();
+
     }
 
 
