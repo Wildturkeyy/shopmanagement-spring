@@ -3,6 +3,7 @@ package com.shopsProject.management.controller;
 import com.shopsProject.management.dto.ErrorResponse;
 import com.shopsProject.management.dto.WholesaleProdDto;
 import com.shopsProject.management.security.CustomUserDetails;
+import com.shopsProject.management.service.CategoryService;
 import com.shopsProject.management.service.WholesaleProdService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -33,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class WholesaleProdController {
 
     private final WholesaleProdService wholesaleProdService;
+    private final CategoryService categoryService;
 
     /**
      * 도매업체 상품 등록
@@ -58,9 +60,15 @@ public class WholesaleProdController {
         return ResponseEntity.ok(wholesaleProdService.createProduct(req, principal.getUuid()));
     }
 
+    /**
+     * 도매업체 상품 상세 페이지
+     * @param productId
+     * @param principal 로그인된 도매업체(WHOLESALER 사용자) 정보
+     * @return 상품 정보 DTO
+     */
     @Operation(
         summary = "도매업체 상품 디테일 요청",
-        description = "productId로 도매업체의 상품 디테일 요청 / 상품 상세 페이지, 상품 수정 페이지",
+        description = "productId로 도매업체의 상품 디테일 요청 / 상품 상세 페이지",
         responses = {
             @ApiResponse(responseCode = "200", description = "성공",
                 content = @Content(schema = @Schema(implementation = WholesaleProdDto.ProdResponse.class)))
@@ -68,13 +76,45 @@ public class WholesaleProdController {
     )
     @PreAuthorize("hasRole('WHOLESALER')")
     @GetMapping("/{productId}")
-    public ResponseEntity<WholesaleProdDto.ProdResponse> getProductItemByProductId(
+    public ResponseEntity<?> getProductItemByProductId(
         @PathVariable Long productId,
         @AuthenticationPrincipal CustomUserDetails principal) {
 
         log.info("[도매상품 상품 디테일] 요청 Controller / 요청자: {}, productId: {}", principal.getUuid(), productId);
-        return ResponseEntity.ok(wholesaleProdService.getProductDetails(productId, principal.getUuid()));
+        return ResponseEntity.ok(wholesaleProdService.getProductDetails(productId, principal.getUuid(), "details"));
     }
+
+    /**
+     * 도매 업체 상품 수정 페이지
+     * @param productId
+     * @param principal 로그인된 도매업체(WHOLESALER 사용자) 정보
+     * @return 상품 정보 DTO + 카테고리 DTO
+     */
+    @Operation(
+        summary = "도매업체 상품 정보 수정을 위한 디테일 요청",
+        description = "productId로 도매업체의 상품 디테일 요청 / 상품 수정 페이지",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "성공",
+                content = @Content(schema = @Schema(implementation = WholesaleProdDto.ProdDetailsForUpdateResponse.class)))
+        }
+    )
+    @PreAuthorize("hasRole('WHOLESALER')")
+    @GetMapping("/{productId}/edit")
+    public ResponseEntity<WholesaleProdDto.ProdDetailsForUpdateResponse> getProductItemByProductIdForUpdate(
+        @PathVariable Long productId,
+        @AuthenticationPrincipal CustomUserDetails principal) {
+
+        log.info("[도매상품 상품 디테일] 수정을 위한 정보 요청 Controller / 요청자: {}, productId: {}", principal.getUuid(), productId);
+        return ResponseEntity.ok(wholesaleProdService.getProductDetailsForEdit(productId, principal.getUuid()));
+    }
+
+    /**
+     * 도매 업체 상품 상태 변경 (판매중 / 판매중단)
+     * @param productId
+     * @param req 변경하고자 하는 상태 true/false , true: 판매중으로 변경 요청, false: 판매중단으로 변경 요청
+     * @param principal 로그인된 도매업체(WHOLESALER 사용자) 정보
+     * @return
+     */
 
     @Operation(
         summary = "도매 업체 상품의 상태 (판매중/판매중단) 변경",
@@ -97,6 +137,12 @@ public class WholesaleProdController {
         return ResponseEntity.ok(wholesaleProdService.updateIsActive(productId, principal.getUuid(), req.isActive()));
     }
 
+    /**
+     * 도배업체 상품 삭제 요청
+     * @param productId
+     * @param principal
+     * @return
+     */
     @Operation(
         summary = "도매업체 상품 삭제 요청",
         description = "판매내역이 없는 상품은 삭제, 있는 상품은 판매 중단 유도 필요",

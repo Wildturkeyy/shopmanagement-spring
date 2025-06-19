@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/wholesaler")
+@RequestMapping("/api/v1/wholesaler/products")
 @RequiredArgsConstructor
 public class WholesaleProdVariantController {
 
@@ -63,7 +63,7 @@ public class WholesaleProdVariantController {
         }
     )
     @PreAuthorize("hasRole('WHOLESALER')")
-    @GetMapping("/products/{productId}/variants")
+    @GetMapping("/{productId}/variants")
     public ResponseEntity<WholesaleProdVariantDto.GetProdVariantListResponse> getProdVariantsByProdId(
         @PathVariable Long productId,
         @AuthenticationPrincipal CustomUserDetails principal) {
@@ -72,6 +72,13 @@ public class WholesaleProdVariantController {
         return ResponseEntity.ok(prodVariantService.GetProdVariantsByProdId(productId, principal.getUuid()));
     }
 
+    /**
+     *
+     * @param productId
+     * @param req
+     * @param principal
+     * @return
+     */
     @Operation(
         summary = "도매업체의 특정 상품의 (by productId) 전체 재고 옵션 수정 요청",
         description = "수정된 특정 상품의 재고 옵션 productId, (id, size, color, stock) 목록 반환",
@@ -81,7 +88,7 @@ public class WholesaleProdVariantController {
         }
     )
     @PreAuthorize("hasRole('WHOLESALER')")
-    @PatchMapping("/products/{productId}/variants")
+    @PatchMapping("/{productId}/variants")
     public ResponseEntity<WholesaleProdVariantDto.GetProdVariantListResponse> updateProdVariantsByProdId(
         @PathVariable Long productId,
         @RequestBody @Valid WholesaleProdVariantDto.UpdateProdVariantListRequest req,

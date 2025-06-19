@@ -37,6 +37,8 @@ public class WholesaleProdService {
     private final WholesaleProdVariantRepository prodVariantRepository;
     private final CategoryRepository categoryRepository;
 
+    private final CategoryService categoryService;
+
     /**
      * 도매 업체 상품 등록
      * : 상품 및 옵션, 이미지, 상세블록 등
@@ -114,58 +116,29 @@ public class WholesaleProdService {
 
     }
 
-    public WholesaleProdDto.ProdResponse getProductDetails(Long productId, String uuid) {
+    public WholesaleProdDto.ProdResponse getProductDetails(Long productId, String uuid, String type) {
         log.info("[도매업체 상품 디테일] 정보 전닾 / 요청자: {}, productId: {}", uuid, productId);
 
         WholesaleProd prod = wholesaleProdChecker.validateAndGetProduct(productId, uuid, "[도매업체 상품 디테일]");
 
-        // 이미지
-        List<WholesaleProdDto.Image> images = prod.getImages().stream()
-            .map(img -> WholesaleProdDto.Image.builder()
-                .id(img.getId())
-                .imgUrl(img.getImg())
-                .sortOrder(img.getSortOrder())
-                .build())
-            .toList();
-
-        // 디테일 블록
-        List<WholesaleProdDto.DetailBlock> detailBlocks = prod.getDetailBlocks().stream()
-            .map(detail -> WholesaleProdDto.DetailBlock.builder()
-                .id(detail.getId())
-                .blockType(detail.getBlockType())
-                .imgUrl(detail.getImgUrl())
-                .content(detail.getContent())
-                .blockOrder(detail.getBlockOrder())
-                .build())
-            .toList();
-
-        List<WholesaleProdDto.StockOption> stockOptions = prod.getVariants().stream()
-            .map(stock -> WholesaleProdDto.StockOption.builder()
-                .id(stock.getId())
-                .size(stock.getSize())
-                .color(stock.getColor())
-                .stock(stock.getStock())
-                .build())
-            .toList();
-
-        WholesaleProdDto.ProdValue prodValue = WholesaleProdDto.ProdValue.builder()
-            .productName(prod.getProductName())
-            .category(WholesaleProdDto.Category.builder()
-                .id(prod.getCategory().getId())
-                .name(prod.getCategory().getCategoryName())
-                .build())
-            .price(prod.getPrice())
-            .isSmplAva(prod.isSmplAva())
-            .memo(prod.getMemo())
-            .description(prod.getDescription())
-            .images(images)
-            .detailBlocks(detailBlocks)
-            .build();
-
         return WholesaleProdDto.ProdResponse.builder()
             .productId(productId)
-            .prodValue(prodValue)
-            .stockOptions(stockOptions)
+            .prodValue(buildProdValue(prod))
+            .stockOptions(buildStockOptions(prod))
+            .build();
+
+    }
+
+    public WholesaleProdDto.ProdDetailsForUpdateResponse getProductDetailsForEdit(Long productId, String uuid) {
+        log.info("[도매업체 상품 디테일 for Edit] 유효성 검사 / 요청자: {}, productId: {}", uuid, productId);
+
+        WholesaleProd prod = wholesaleProdChecker.validateAndGetProduct(productId, uuid, "[도매업체 상품 디테일 for Edit]");
+
+        return WholesaleProdDto.ProdDetailsForUpdateResponse.builder()
+            .productId(productId)
+            .prodValue(buildProdValue(prod))
+            .stockOptions(buildStockOptions(prod))
+            .categories(categoryService.getCategory())
             .build();
     }
 
@@ -208,6 +181,60 @@ public class WholesaleProdService {
 
         wholesaleProdRepository.delete(prod);
         log.info("[도매업체 상품 삭제 요청] 완료 / 요청자: {}", uuid);
+    }
+
+
+    private WholesaleProdDto.ProdValue buildProdValue(WholesaleProd prod) {
+
+        // 이미지
+        List<WholesaleProdDto.Image> images = prod.getImages().stream()
+            .map(img -> WholesaleProdDto.Image.builder()
+                .id(img.getId())
+                .imgUrl(img.getImg())
+                .sortOrder(img.getSortOrder())
+                .build())
+            .toList();
+
+        // 디테일 블록
+        List<WholesaleProdDto.DetailBlock> detailBlocks = prod.getDetailBlocks().stream()
+            .map(detail -> WholesaleProdDto.DetailBlock.builder()
+                .id(detail.getId())
+                .blockType(detail.getBlockType())
+                .imgUrl(detail.getImgUrl())
+                .content(detail.getContent())
+                .blockOrder(detail.getBlockOrder())
+                .build())
+            .toList();
+
+        WholesaleProdDto.ProdValue prodValue = WholesaleProdDto.ProdValue.builder()
+            .productName(prod.getProductName())
+            .category(WholesaleProdDto.Category.builder()
+                .id(prod.getCategory().getId())
+                .name(prod.getCategory().getCategoryName())
+                .build())
+            .price(prod.getPrice())
+            .isSmplAva(prod.isSmplAva())
+            .memo(prod.getMemo())
+            .description(prod.getDescription())
+            .images(images)
+            .detailBlocks(detailBlocks)
+            .build();
+
+        return prodValue;
+    }
+
+    private List<WholesaleProdDto.StockOption> buildStockOptions(WholesaleProd prod) {
+
+        List<WholesaleProdDto.StockOption> stockOptions = prod.getVariants().stream()
+            .map(stock -> WholesaleProdDto.StockOption.builder()
+                .id(stock.getId())
+                .size(stock.getSize())
+                .color(stock.getColor())
+                .stock(stock.getStock())
+                .build())
+            .toList();
+
+        return stockOptions;
     }
 
     /**

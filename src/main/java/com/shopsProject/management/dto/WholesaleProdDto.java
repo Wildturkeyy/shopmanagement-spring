@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import java.util.List;
+import java.util.PrimitiveIterator;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -43,7 +44,7 @@ public class WholesaleProdDto {
         private List<@Valid StockOption> stockOptions;
     }
 
-    // 상품 Detail, 수정 response dto
+    // 상품 dto
     @Getter @Setter @Builder
     public static class ProdResponse {
         private Long productId;
@@ -51,6 +52,15 @@ public class WholesaleProdDto {
         private ProdValue prodValue;
 
         private List<@Valid StockOption> stockOptions;
+    }
+
+    // 상품 수정 페이지 open dto
+    @Getter @Setter @Builder
+    public static class ProdDetailsForUpdateResponse {
+        private Long productId;
+        private ProdValue prodValue;
+        private List<@Valid StockOption> stockOptions;
+        private List<CategoryDto> categories;
     }
 
     // 상품 정보 dto
