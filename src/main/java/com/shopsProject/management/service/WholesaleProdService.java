@@ -104,7 +104,6 @@ public class WholesaleProdService {
                     .stock(0)
                     .build();
                 prodVariantRepository.save(variant);
-                log.info("[도매업체 상품 등록 옵션] variantId: {}", variant.getId());
                 log.debug("[도매업체 상품등록] 상품 옵션(컬러, 사이즈, 재고) 등록 / Variant id: {}", variant.getId());
             }
         }
@@ -119,6 +118,13 @@ public class WholesaleProdService {
 
     }
 
+    /**
+     *
+     * @param productId
+     * @param uuid
+     * @param type
+     * @return
+     */
     public WholesaleProdDto.ProdResponse getProductDetails(Long productId, String uuid, String type) {
         log.info("[도매업체 상품 디테일] 정보 전닾 / 요청자: {}, productId: {}", uuid, productId);
 
@@ -132,6 +138,12 @@ public class WholesaleProdService {
 
     }
 
+    /**
+     *
+     * @param productId
+     * @param uuid
+     * @return
+     */
     public WholesaleProdDto.ProdDetailsForUpdateResponse getProductDetailsForEdit(Long productId, String uuid) {
         log.info("[도매업체 상품 디테일 for Edit] 유효성 검사 / 요청자: {}, productId: {}", uuid, productId);
 
@@ -187,6 +199,13 @@ public class WholesaleProdService {
     }
 
 
+    // //////////////////////////////////////////////////
+
+    /**
+     *
+     * @param prod
+     * @return
+     */
     private WholesaleProdDto.ProdValue buildProdValue(WholesaleProd prod) {
 
         // 이미지
@@ -226,6 +245,11 @@ public class WholesaleProdService {
         return prodValue;
     }
 
+    /**
+     *
+     * @param prod
+     * @return
+     */
     private List<WholesaleProdDto.StockOption> buildStockOptions(WholesaleProd prod) {
 
         List<WholesaleProdDto.StockOption> stockOptions = prod.getVariants().stream()
